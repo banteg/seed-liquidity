@@ -11,13 +11,14 @@ A contract to pool funds which are then used to boostrap a new Uniswap liquidity
 
 ## Interface
 
-### `__init__(address,address[2],uint256[2],uint256)`
+### `__init__(address,address[2],uint256[2],uint256,uint256)`
 Set up a new seed liquidity contract
 
 - `router` UniswapRouter address, e.g. 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
 - `tokens` Tokens which comprise a pair
 - `target` Amounts of tokens to provide, also determines the initial price
-- `duration` Duration in seconds over which the contract accepts deposits
+- `duration` Duration over which the contract accepts deposits, in seconds
+- `locktime` How long the liquidity will stay locked, in seconds
 
 ### `deposit(uint256[2])`
 Deposit token amounts into the contract.
@@ -33,7 +34,7 @@ This function can only be called once and before the contract has expired. Requi
 ### `claim()`
 Claim the received LP tokens
 
-Can be called after liquidity is provided. The token amount is distributed pro-rata to the contribution.
+Can be called after liquidity is provided and the locktime has expired. The token amount is distributed pro-rata to the contribution.
 
 ### `bail()`
 Withdraw the tokens if the contract has expired without providing liquidity
