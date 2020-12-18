@@ -39,6 +39,7 @@ def __init__(router: address, tokens: address[2], target: uint256[2], duration: 
         pair = Uniswap(factory).createPair(tokens[0], tokens[1])
     self.pair = ERC20(pair)
     self.expiry = block.timestamp + duration
+    assert self.pair.totalSupply() == 0  # dev: already liquid
 
 
 @external
@@ -46,7 +47,7 @@ def deposit(amounts: uint256[2]):
     assert self.liquidity == 0  # dev: liquidity seeeded
     amount: uint256 = 0
     for i in range(2):
-        amount = min(amounts[i], self.target[i] - self.totals[i] - amounts[i])
+        amount = min(amounts[i], self.target[i] - self.totals[i])
         assert ERC20(self.tokens[i]).transferFrom(msg.sender, self, amount)
         self.balances[msg.sender][i] += amount
         self.totals[i] += amount
@@ -55,6 +56,7 @@ def deposit(amounts: uint256[2]):
 @external
 def provide():
     assert self.liquidity == 0  # dev: liquidity seeeded
+    assert self.pair.totalSupply() == 0  # dev: already liquid
     amount: uint256 = 0
     for i in range(2):
         assert self.totals[i] == self.target[i]  # dev: token not filled
@@ -62,7 +64,7 @@ def provide():
     
     self.router.addLiquidity(
         self.tokens[0],
-        self.tokens[0],
+        self.tokens[1],
         self.totals[0],
         self.totals[1],
         self.totals[0],  # don't allow slippage
