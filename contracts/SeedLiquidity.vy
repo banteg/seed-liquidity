@@ -35,6 +35,7 @@ totals: public(HashMap[uint256, uint256])  # index -> balance
 liquidity: public(uint256)
 expiry: public(uint256)
 locktime: public(uint256)
+unlock: public(uint256)
 
 
 @external
@@ -111,7 +112,7 @@ def provide():
         block.timestamp
     )
     
-    self.locktime += block.timestamp
+    self.unlock = block.timestamp + self.locktime
     self.liquidity = self.pair.balanceOf(self)
     assert self.liquidity > 0  # dev: no liquidity provided
 
@@ -125,7 +126,7 @@ def claim():
         The token amount is distributed pro-rata to the contribution.
     """
     assert self.liquidity != 0  # dev: liquidity not seeded
-    assert block.timestamp >= self.locktime # dev: liquidity is locked
+    assert block.timestamp >= self.unlock # dev: liquidity is locked
     amount: uint256 = 0
     for i in range(2):
         amount += self.balances[msg.sender][i] * self.liquidity / self.totals[i] / 2
