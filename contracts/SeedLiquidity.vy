@@ -1,4 +1,10 @@
 # @version 0.2.8
+"""
+@title Pool tokens to seed Uniswap liquidity
+@license MIT
+@author banteg
+@notice Use this contract to boostrap a Uniswap exchange
+"""
 from vyper.interfaces import ERC20
 
 interface Factory:
@@ -32,6 +38,14 @@ expiry: public(uint256)
 
 @external
 def __init__(router: address, tokens: address[2], target: uint256[2], duration: uint256):
+    """
+    @notice Set up a new seed liquidity contract
+
+    @param router UniswapRouter address, e.g. 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+    @param tokens Tokens which comprise a pair
+    @param target Amounts of tokens to provide, also determines the initial price
+    @param duration Duration in seconds over which the contract accepts deposits
+    """
     self.router = Router(router)
     self.tokens = tokens
     self.target = target
@@ -46,6 +60,16 @@ def __init__(router: address, tokens: address[2], target: uint256[2], duration: 
 
 @external
 def deposit(amounts: uint256[2]):
+    """
+    @notice Deposit token amounts into the contract
+    @dev
+        A user must have approved the contract to spend the tokens.
+        The token amounts are clamped down to not exceed target.
+        This function only works up to the moment when liquidity is provided
+        or the contract is expired, whichever comes first.
+
+    @param amounts Token amounts to deposit
+    """
     assert self.liquidity == 0  # dev: liquidity already seeded
     assert block.timestamp < self.expiry  # dev: contract has expired
     amount: uint256 = 0
@@ -58,6 +82,13 @@ def deposit(amounts: uint256[2]):
 
 @external
 def provide():
+    """
+    @notice Bootstrap a new Uniswap pair using assets in contract
+    @dev
+        This function can only be called once and before the contract is expired.
+        Requires the target to be reached for both tokens.
+        Requires a pool to have no liquidity in it.
+    """
     assert self.liquidity == 0  # dev: liquidity already seeded
     assert block.timestamp < self.expiry  # dev: contract has expired
     assert self.pair.totalSupply() == 0  # dev: cannot seed a liquid pair
@@ -83,6 +114,12 @@ def provide():
 
 @external
 def claim():
+    """
+    @notice Claim the received LP tokens.
+    @dev
+        Can be called after liquidity is provided.
+        The token amount is distributed pro-rata to the contribution.
+    """
     assert self.liquidity != 0  # dev: liquidity not seeded
     amount: uint256 = 0
     for i in range(2):
@@ -93,6 +130,11 @@ def claim():
 
 @external
 def bail():
+    """
+    @notice Withdraw the tokens back if the contract has expired without providing liquidity
+    @dev
+        Can be called after expiry given no liquidity has been provided
+    """
     assert self.liquidity == 0  # dev: liquidity already seeded, use `claim()`
     assert block.timestamp >= self.expiry  # dev: contract not expired
     amount: uint256 = 0
