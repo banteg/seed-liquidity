@@ -41,12 +41,13 @@ def __init__(router: address, tokens: address[2], target: uint256[2], duration: 
         pair = Factory(factory).createPair(tokens[0], tokens[1])
     self.pair = ERC20(pair)
     self.expiry = block.timestamp + duration
-    assert self.pair.totalSupply() == 0  # dev: already liquid
+    assert self.pair.totalSupply() == 0  # dev: pair already liquid
 
 
 @external
 def deposit(amounts: uint256[2]):
-    assert self.liquidity == 0  # dev: liquidity seeeded
+    assert self.liquidity == 0  # dev: liquidity already seeded
+    assert block.timestamp < self.expiry  # dev: contract has expired
     amount: uint256 = 0
     for i in range(2):
         amount = min(amounts[i], self.target[i] - self.totals[i])
@@ -57,11 +58,12 @@ def deposit(amounts: uint256[2]):
 
 @external
 def provide():
-    assert self.liquidity == 0  # dev: liquidity seeeded
-    assert self.pair.totalSupply() == 0  # dev: already liquid
+    assert self.liquidity == 0  # dev: liquidity already seeded
+    assert block.timestamp < self.expiry  # dev: contract has expired
+    assert self.pair.totalSupply() == 0  # dev: cannot seed a liquid pair
     amount: uint256 = 0
     for i in range(2):
-        assert self.totals[i] == self.target[i]  # dev: token not filled
+        assert self.totals[i] == self.target[i]  # dev: target not reached
         assert ERC20(self.tokens[i]).approve(self.router.address, self.totals[i])
     
     self.router.addLiquidity(
@@ -80,10 +82,21 @@ def provide():
 
 
 @external
-def withdraw():
+def claim():
     assert self.liquidity != 0  # dev: liquidity not seeded
     amount: uint256 = 0
     for i in range(2):
         amount += self.balances[msg.sender][i] * self.liquidity / self.totals[i] / 2
         self.balances[msg.sender][i] = 0
     assert self.pair.transfer(msg.sender, amount)
+
+
+@external
+def bail():
+    assert self.liquidity == 0  # dev: liquidity already seeded, use `claim()`
+    assert block.timestamp >= self.expiry  # dev: contract not expired
+    amount: uint256 = 0
+    for i in range(2):
+        amount = self.balances[msg.sender][i]
+        self.balances[msg.sender][i] = 0
+        ERC20(self.tokens[i]).transfer(msg.sender, amount)
