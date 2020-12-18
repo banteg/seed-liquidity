@@ -19,80 +19,54 @@ interface Uniswap:
     ) -> (uint256, uint256, uint256): nonpayable
 
 router: public(Uniswap)
-token_a: public(ERC20)
-token_b: public(ERC20)
+tokens: public(address[2])
+target: public(uint256[2])
 pair: public(ERC20)
-remaining_a: public(uint256)
-remaining_b: public(uint256)
-balances_a: public(HashMap[address, uint256])
-balances_b: public(HashMap[address, uint256])
+balances: public(HashMap[address, HashMap[uint256, uint256]])  # address -> index -> balance
+totals: public(HashMap[uint256, uint256])  # index -> balance
 liquidity: public(uint256)
 expiry: public(uint256)
 
 
 @external
-def __init__(router: address, token_a: address, token_b: address, target_a: uint256, target_b: uint256):
+def __init__(router: address, tokens: address[2], target: uint256[2], duration: uint256):
     self.router = Uniswap(router)
-    self.token_a = ERC20(token_a)
-    self.token_b = ERC20(token_b)
-    self.remaining_a = target_a
-    self.remaining_b = target_b
+    self.tokens = tokens
+    self.target = target
     factory: address = self.router.factory()
-    pair: address = Uniswap(factory).getPair(token_a, token_b)
+    pair: address = Uniswap(factory).getPair(tokens[0], tokens[1])
     if pair == ZERO_ADDRESS:
-        pair = Uniswap(factory).createPair(token_a, token_b)
+        pair = Uniswap(factory).createPair(tokens[0], tokens[1])
     self.pair = ERC20(pair)
-    self.expiry = block.timestamp + 14 * 86400
+    self.expiry = block.timestamp + duration
 
 
 @external
-def deposit(amount_a: uint256, amount_b: uint256):
+def deposit(amounts: uint256[2]):
     assert self.liquidity == 0  # dev: liquidity seeeded
-
-    add_a: uint256 = min(amount_a, self.remaining_a)
-    assert self.token_a.transferFrom(msg.sender, self, add_a)
-    self.balances_a[msg.sender] += add_a
-    self.remaining_a -= add_a
-
-    add_b: uint256 = min(amount_b, self.remaining_b)
-    assert self.token_a.transferFrom(msg.sender, self, add_b)
-    self.balances_b[msg.sender] += add_b
-    self.remaining_b -= add_b
-
-
-@external
-def withdraw():
-    assert block.timestamp >= self.expiry  # dev: not expired yet
-    assert self.liquidity == 0  # dev: liquidity seeded
-    
-    withdraw_a: uint256 = self.balances_a[msg.sender]
-    self.balances_a[msg.sender] = 0
-    assert self.token_a.transfer(msg.sender, withdraw_a)
-
-    withdraw_b: uint256 = self.balances_b[msg.sender]
-    self.balances_b[msg.sender] = 0
-    assert self.token_b.transfer(msg.sender, withdraw_b)
+    amount: uint256 = 0
+    for i in range(2):
+        amount = min(amounts[i], self.target[i] - self.totals[i] - amounts[i])
+        assert ERC20(self.tokens[i]).transferFrom(msg.sender, self, amount)
+        self.balances[msg.sender][i] += amount
+        self.totals[i] += amount
 
 
 @external
 def provide():
     assert self.liquidity == 0  # dev: liquidity seeeded
-    assert self.remaining_a == 0  # dev: token a not filled
-    assert self.remaining_b == 0  # dev: token b not filled
-    
-    add_a: uint256 = self.token_a.balanceOf(self)
-    add_b: uint256 = self.token_b.balanceOf(self)
-
-    assert self.token_a.approve(self.router.address, add_a)
-    assert self.token_b.approve(self.router.address, add_b)
+    amount: uint256 = 0
+    for i in range(2):
+        assert self.totals[i] == self.target[i]  # dev: token not filled
+        assert ERC20(self.tokens[i]).approve(self.router.address, self.totals[i])
     
     self.router.addLiquidity(
-        self.token_a.address,
-        self.token_b.address,
-        add_a,
-        add_b,
-        add_a,
-        add_b,
+        self.tokens[0],
+        self.tokens[0],
+        self.totals[0],
+        self.totals[1],
+        self.totals[0],  # don't allow slippage
+        self.totals[1],
         self,
         block.timestamp
     )
