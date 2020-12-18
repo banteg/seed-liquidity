@@ -75,3 +75,13 @@ def provide():
 
     self.liquidity = self.pair.balanceOf(self)
     assert self.liquidity > 0  # dev: no liquidity provided
+
+
+@external
+def withdraw():
+    assert self.liquidity != 0  # dev: liquidity not seeded
+    amount: uint256 = 0
+    for i in range(2):
+        amount += self.balances[msg.sender][i] * self.liquidity / self.totals[i] / 2
+        self.balances[msg.sender][i] = 0
+    assert self.pair.transfer(msg.sender, amount)
