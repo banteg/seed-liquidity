@@ -34,10 +34,11 @@ balances: public(HashMap[address, HashMap[uint256, uint256]])  # address -> inde
 totals: public(HashMap[uint256, uint256])  # index -> balance
 liquidity: public(uint256)
 expiry: public(uint256)
+locktime: public(uint256)
 
 
 @external
-def __init__(router: address, tokens: address[2], target: uint256[2], duration: uint256):
+def __init__(router: address, tokens: address[2], target: uint256[2], duration: uint256, locktime: uint256):
     """
     @notice Set up a new seed liquidity contract
 
@@ -45,6 +46,7 @@ def __init__(router: address, tokens: address[2], target: uint256[2], duration: 
     @param tokens Tokens which comprise a pair
     @param target Amounts of tokens to provide, also determines the initial price
     @param duration Duration in seconds over which the contract accepts deposits
+    @param locktime How long the liquidity will stay locked, in seconds
     """
     self.router = Router(router)
     self.tokens = tokens
@@ -55,6 +57,7 @@ def __init__(router: address, tokens: address[2], target: uint256[2], duration: 
         pair = Factory(factory).createPair(tokens[0], tokens[1])
     self.pair = ERC20(pair)
     self.expiry = block.timestamp + duration
+    self.locktime = locktime
     assert self.pair.totalSupply() == 0  # dev: pair already liquid
 
 
@@ -107,7 +110,8 @@ def provide():
         self,
         block.timestamp
     )
-
+    
+    self.locktime = self.locktime + block.timestamp
     self.liquidity = self.pair.balanceOf(self)
     assert self.liquidity > 0  # dev: no liquidity provided
 
@@ -121,6 +125,7 @@ def claim():
         The token amount is distributed pro-rata to the contribution.
     """
     assert self.liquidity != 0  # dev: liquidity not seeded
+    assert block.timestamp > self.locktime # dev: liquidity yet locked
     amount: uint256 = 0
     for i in range(2):
         amount += self.balances[msg.sender][i] * self.liquidity / self.totals[i] / 2
