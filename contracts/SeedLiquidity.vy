@@ -63,10 +63,10 @@ def deposit(amounts: uint256[2]):
     """
     @notice Deposit token amounts into the contract
     @dev
-        A user must have approved the contract to spend the tokens.
-        The token amounts are clamped down to not exceed target.
+        A user must have approved the contract to spend both tokens.
+        The token amounts are clamped to not exceed their targets.
         This function only works up to the moment when liquidity is provided
-        or the contract is expired, whichever comes first.
+        or the contract has expired, whichever comes first.
 
     @param amounts Token amounts to deposit
     """
@@ -83,11 +83,11 @@ def deposit(amounts: uint256[2]):
 @external
 def provide():
     """
-    @notice Bootstrap a new Uniswap pair using assets in contract
+    @notice Bootstrap a new Uniswap pair using the assets in the contract
     @dev
-        This function can only be called once and before the contract is expired.
+        This function can only be called once and before the contract has expired.
         Requires the target to be reached for both tokens.
-        Requires a pool to have no liquidity in it.
+        Requires the pool to have no liquidity in it.
     """
     assert self.liquidity == 0  # dev: liquidity already seeded
     assert block.timestamp < self.expiry  # dev: contract has expired
@@ -115,7 +115,7 @@ def provide():
 @external
 def claim():
     """
-    @notice Claim the received LP tokens.
+    @notice Claim the received LP tokens
     @dev
         Can be called after liquidity is provided.
         The token amount is distributed pro-rata to the contribution.
@@ -131,9 +131,9 @@ def claim():
 @external
 def bail():
     """
-    @notice Withdraw the tokens back if the contract has expired without providing liquidity
+    @notice Withdraw the tokens if the contract has expired without providing liquidity
     @dev
-        Can be called after expiry given no liquidity has been provided
+        Can be called after expiry given no liquidity has been provided.
     """
     assert self.liquidity == 0  # dev: liquidity already seeded, use `claim()`
     assert block.timestamp >= self.expiry  # dev: contract not expired
