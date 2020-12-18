@@ -38,5 +38,6 @@ def seed(SeedLiquidity, uniswap, lido, weth, accounts):
         [lido, weth],
         ["10000000 ether", "150 ether"],
         14 * 86400,
+        0,
         {"from": accounts[0]},
     )

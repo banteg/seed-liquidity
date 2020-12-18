@@ -45,7 +45,7 @@ def __init__(router: address, tokens: address[2], target: uint256[2], duration: 
     @param router UniswapRouter address, e.g. 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
     @param tokens Tokens which comprise a pair
     @param target Amounts of tokens to provide, also determines the initial price
-    @param duration Duration in seconds over which the contract accepts deposits
+    @param duration Duration over which the contract accepts deposits, in seconds
     @param locktime How long the liquidity will stay locked, in seconds
     """
     self.router = Router(router)
@@ -111,7 +111,7 @@ def provide():
         block.timestamp
     )
     
-    self.locktime = self.locktime + block.timestamp
+    self.locktime += block.timestamp
     self.liquidity = self.pair.balanceOf(self)
     assert self.liquidity > 0  # dev: no liquidity provided
 
@@ -125,7 +125,7 @@ def claim():
         The token amount is distributed pro-rata to the contribution.
     """
     assert self.liquidity != 0  # dev: liquidity not seeded
-    assert block.timestamp > self.locktime # dev: liquidity yet locked
+    assert block.timestamp >= self.locktime # dev: liquidity is locked
     amount: uint256 = 0
     for i in range(2):
         amount += self.balances[msg.sender][i] * self.liquidity / self.totals[i] / 2
