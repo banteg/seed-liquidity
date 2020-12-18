@@ -1,11 +1,12 @@
 # @version 0.2.8
 from vyper.interfaces import ERC20
 
-interface Uniswap:
-    # factory
+interface Factory:
     def getPair(tokenA: address, tokenB: address) -> address: view
     def createPair(tokenA: address, tokenB: address) -> address: nonpayable
-    # router
+
+
+interface Router:
     def factory() -> address: view
     def addLiquidity(
         tokenA: address,
@@ -18,7 +19,8 @@ interface Uniswap:
         deadline: uint256
     ) -> (uint256, uint256, uint256): nonpayable
 
-router: public(Uniswap)
+
+router: public(Router)
 tokens: public(address[2])
 target: public(uint256[2])
 pair: public(ERC20)
@@ -30,13 +32,13 @@ expiry: public(uint256)
 
 @external
 def __init__(router: address, tokens: address[2], target: uint256[2], duration: uint256):
-    self.router = Uniswap(router)
+    self.router = Router(router)
     self.tokens = tokens
     self.target = target
     factory: address = self.router.factory()
-    pair: address = Uniswap(factory).getPair(tokens[0], tokens[1])
+    pair: address = Factory(factory).getPair(tokens[0], tokens[1])
     if pair == ZERO_ADDRESS:
-        pair = Uniswap(factory).createPair(tokens[0], tokens[1])
+        pair = Factory(factory).createPair(tokens[0], tokens[1])
     self.pair = ERC20(pair)
     self.expiry = block.timestamp + duration
     assert self.pair.totalSupply() == 0  # dev: already liquid
