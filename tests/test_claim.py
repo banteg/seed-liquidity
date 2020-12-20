@@ -110,3 +110,29 @@ def test_claim_targets_met_provided_unlocked_distribute(seed_with_waitime, lido,
 
     seed_with_waitime.claim({"from": whale})
     assert pair.balanceOf(whale) == seed_with_waitime.liquidity() // 2
+
+def test_claim_targets_met_multiaccount_provided_unlocked_distribute(seed_with_waitime, lido, weth, agent, whale, interface, chain):
+    pair = interface.ERC20(seed_with_waitime.pair())
+    lido_amount = seed_with_waitime.target(0)
+    weth_amount = seed_with_waitime.target(1)
+    
+    lido.approve(seed_with_waitime, lido_amount//2)
+    seed_with_waitime.deposit([lido_amount//2, 0], {'from': agent})
+
+    lido.transfer(whale, lido_amount//2, {'from': agent})
+
+    lido.approve(seed_with_waitime, lido_amount//2, {'from': whale})
+    seed_with_waitime.deposit([lido_amount//2, 0], {'from': whale})
+
+    weth.approve(seed_with_waitime, weth_amount)
+    seed_with_waitime.deposit([0, weth_amount], {'from': whale})
+
+    seed_with_waitime.provide()
+
+    chain.sleep(100)
+
+    seed_with_waitime.claim({"from": agent})
+    assert pair.balanceOf(agent) == seed_with_waitime.liquidity() // 4
+
+    seed_with_waitime.claim({"from": whale})
+    assert pair.balanceOf(whale) == seed_with_waitime.liquidity()*3 // 4
