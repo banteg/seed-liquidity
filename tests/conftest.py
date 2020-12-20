@@ -41,3 +41,14 @@ def seed(SeedLiquidity, uniswap, lido, weth, accounts):
         0,
         {"from": accounts[0]},
     )
+
+@pytest.fixture
+def seed_with_waitime(SeedLiquidity, uniswap, lido, weth, accounts):
+    return SeedLiquidity.deploy(
+        uniswap,
+        [lido, weth],
+        ["10000000 ether", "150 ether"],
+        14 * 86400,
+        100,
+        {"from": accounts[0]},
+    )
